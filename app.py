@@ -395,7 +395,19 @@ def show_help():
     
     **Q: Can I customize the risk assessment criteria?**  
     A: Yes, you can adjust the parameters in the Risk Assessment section.
-    """)
+    
+    **Q: How does FraudShield detect fraud?**
+    A: It uses machine learning algorithms to monitor transaction behaviors, flag anomalies, and assign risk scores.
+
+    **Q: Is FraudShield suitable for small businesses?**
+    A: Yes, FraudShield is scalable and can be used by both small businesses and large enterprises.
+
+    **Q: What industries can use FraudShield?**
+    A: It can be used in banking, e-commerce, insurance, fintech, and any business dealing with financial transactions.
+
+    **Q: Does FraudShield work in real time?**
+    A: Yes, it provides real-time fraud detection to prevent suspicious transactions before they are processed."""
+          )
 
 # Page Navigation
 if page == "Home":
