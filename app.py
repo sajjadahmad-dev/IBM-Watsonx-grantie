@@ -28,6 +28,20 @@ def get_iam_token(api_key):
         st.error(f"Failed to get IAM token: {response.text}")
         return None
 
+# Function to get IAM access token
+def get_iam_token(api_key):
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    data = {
+        "grant_type": "urn:ibm:params:oauth:grant-type:apikey",
+        "apikey": api_key
+    }
+    response = requests.post(IAM_TOKEN_URL, headers=headers, data=data)
+    if response.status_code == 200:
+        return response.json().get("access_token")
+    else:
+        st.error(f"Failed to get IAM token: {response.text}")
+        return None
+
 # Function to query IBM Watsonx API
 def query_granite(prompt):
     iam_token = get_iam_token(API_KEY)
@@ -85,8 +99,6 @@ def analyze_transaction(transaction_text):
             response = query_granite(prompt)
             if response:
                 # Extract the numerical value from the response
-                # Example response: ".\n\n0.95" -> Extract "0.95"
-                import re
                 match = re.search(r"\d+\.\d+", response)  # Find a floating-point number in the response
                 if match:
                     risk_score = float(match.group())  # Convert the matched number to float
@@ -107,9 +119,107 @@ sample_transactions = [
 ]
 
 # Streamlit App Configuration
-st.set_page_config(page_title="Financial Crime Prevention Network", layout="wide")
+st.set_page_config(page_title="FraudShield", layout="wide")
+
+st.markdown(
+    """
+    <style>
+    /* Background and text colors */
+    .stApp {
+        background-color: #eef2f7; /* Light grey-blue */
+        color: #343a40; /* Dark grey */
+    }
+
+    /* Buttons */
+    .stButton>button {
+        background-color: #007BFF; /* Primary blue */
+        color: white;
+        border-radius: 5px;
+        padding: 10px 15px;
+        font-size: 16px;
+        border: none;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #0056b3; /* Darker blue on hover */
+    }
+
+    /* Input fields */
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+        background-color: #ffffff; /* White */
+        border-radius: 5px;
+        border: 1px solid #007BFF; /* Blue border */
+        padding: 8px;
+    }
+
+    /* Chat messages */
+    .stChatMessage {
+        background-color: white;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Sidebar */
+    .stSidebar {
+        background-color: #ffffff; /* Pure white */
+        padding: 20px;
+        border-right: 1px solid #ddd;
+    }
+
+    /* Titles and headings */
+    h1, h2, h3 {
+        color: #0056b3; /* Dark blue */
+    }
+
+    /* Metrics box */
+    .stMetric {
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Sidebar navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Dashboard", "Transaction Analysis", "Risk Assessment", "Reports"])
+page = st.sidebar.radio("Go to", [
+    "Home", "Dashboard", "Transaction Analysis", "Risk Assessment", 
+    "Reports", "Fraud Map", "Fraud Alerts", "Chatbot", 
+    "Feedback", "Help"
+])
+
+# Landing Page
+def show_landing_page():
+    st.title("Welcome to FraudShield 🛡️")
+    st.write("""
+    **FraudShield** is an AI-powered platform designed to detect and prevent financial crimes. 
+    Our solution leverages **IBM Granite AI models** to analyze transactions, assess risks, and generate actionable insights.
+    """)
+    
+    st.subheader("Key Features")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("**Real-Time Analysis**")
+        st.write("Analyze transactions in real-time to detect fraudulent activities.")
+    with col2:
+        st.markdown("**Risk Assessment**")
+        st.write("Evaluate customer profiles and assign risk scores for compliance.")
+    with col3:
+        st.markdown("**Detailed Reports**")
+        st.write("Generate comprehensive reports for audits and decision-making.")
+    
+    st.subheader("Meet the Team: The Code Titans")
+    st.write("""
+    - **Sajjad Ahmad**: AI/ML Engineer
+    - **[Team Member 2]**: Data Scientist
+    - **[Team Member 3]**: UI/UX Designer
+    - **[Team Member 4]**: Backend Developer
+    """)
 
 # Dashboard
 def show_dashboard():
@@ -176,9 +286,13 @@ def show_risk_assessment():
                 with st.spinner("Calculating risk score..."):  # Add a loading spinner
                     response = query_granite(assessment_prompt)
                     if response:
-                        risk_score = float(response.strip()) * 100
-                        st.subheader("Risk Assessment Results")
-                        st.metric("Overall Risk Score", f"{risk_score:.2f}%")
+                        match = re.search(r"\d+\.\d+", response)  # Find a floating-point number in the response
+                        if match:
+                            risk_score = float(match.group()) * 100
+                            st.subheader("Risk Assessment Results")
+                            st.metric("Overall Risk Score", f"{risk_score:.2f}%")
+                        else:
+                            st.error("Failed to extract a valid risk score from the response.")
             except Exception as e:
                 st.error(f"Error calculating risk score: {str(e)}")
 
@@ -198,8 +312,95 @@ def show_reports():
             fig = px.bar(summary_data, x="Date", y="Total Transactions")
             st.plotly_chart(fig)
 
+# Fraud Map
+def show_fraud_map():
+    st.title("Fraud Hotspots Map")
+    st.write("Visualize regions with high fraud activity.")
+    
+    # Sample data for fraud hotspots
+    fraud_data = pd.DataFrame({
+        "latitude": [37.7749, 34.0522, 40.7128, 51.5074, 48.8566],
+        "longitude": [-122.4194, -118.2437, -74.0060, -0.1278, 2.3522],
+        "city": ["San Francisco", "Los Angeles", "New York", "London", "Paris"],
+        "fraud_cases": [120, 95, 150, 80, 60]
+    })
+    
+    # Display the map
+    st.map(fraud_data)
+
+# Fraud Alerts
+def show_fraud_alerts():
+    st.title("Fraud Alerts")
+    st.write("View real-time alerts for suspicious transactions.")
+    
+    # Sample fraud alerts
+    fraud_alerts = [
+        {"id": 1, "date": "2025-02-21", "amount": 5000, "sender": "John Doe", "receiver": "Jane Smith", "status": "High Risk"},
+        {"id": 2, "date": "2025-02-20", "amount": 10000, "sender": "Alice Johnson", "receiver": "Bob Brown", "status": "Medium Risk"},
+        {"id": 3, "date": "2025-02-19", "amount": 1500, "sender": "Charlie Davis", "receiver": "Eve White", "status": "Low Risk"}
+    ]
+    
+    # Display alerts in a table
+    st.table(fraud_alerts)
+
+# Chatbot Page
+def show_chatbot():
+    st.title("Chat with FraudShield AI 🤖")
+    
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Display previous chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Chat input field
+    user_input = st.chat_input("Ask me anything...")
+    
+    if user_input:
+        # Display user message
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
+        
+        # Get AI response
+        with st.chat_message("assistant"):
+            response = query_granite(user_input)
+            if response:
+                st.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            else:
+                st.markdown("Sorry, I couldn't process your request.")
+
+# Feedback
+def show_feedback():
+    st.title("Feedback")
+    st.write("We value your feedback! Let us know how we can improve FraudShield.")
+    
+    feedback = st.text_area("Enter your feedback here:")
+    if st.button("Submit Feedback"):
+        st.success("Thank you for your feedback! We'll review it soon.")
+
+# Help & Documentation
+def show_help():
+    st.title("Help & Documentation")
+    st.write("Find answers to common questions and learn how to use FraudShield.")
+    
+    st.subheader("FAQs")
+    st.write("""
+    **Q: How does FraudShield detect fraud?**  
+    A: FraudShield uses advanced AI models to analyze transaction patterns and identify suspicious activities.
+    
+    **Q: Can I customize the risk assessment criteria?**  
+    A: Yes, you can adjust the parameters in the Risk Assessment section.
+    """)
+
 # Page Navigation
-if page == "Dashboard":
+if page == "Home":
+    show_landing_page()
+elif page == "Dashboard":
     show_dashboard()
 elif page == "Transaction Analysis":
     show_transaction_analysis()
@@ -207,3 +408,13 @@ elif page == "Risk Assessment":
     show_risk_assessment()
 elif page == "Reports":
     show_reports()
+elif page == "Fraud Map":
+    show_fraud_map()
+elif page == "Fraud Alerts":
+    show_fraud_alerts()
+elif page == "Chatbot":
+    show_chatbot()
+elif page == "Feedback":
+    show_feedback()
+elif page == "Help":
+    show_help()
