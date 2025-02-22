@@ -1,4 +1,5 @@
 # app.py
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,7 +10,7 @@ import requests
 import json
 
 # IBM Watsonx API Configuration
-API_KEY = "YOUR_KEY"  # Replace with your IBM Cloud API key
+API_KEY = os.getenv("YOUR_KEY")  # Replace with your IBM Cloud API key
 IAM_TOKEN_URL = "https://iam.cloud.ibm.com/identity/token"
 WATSONX_API_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
 
