@@ -1,5 +1,4 @@
-# app.py
-import os
+\import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,9 +7,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import json
+import re
 
 # IBM Watsonx API Configuration
-API_KEY = os.getenv("YOUR_KEY")  # Replace with your IBM Cloud API key
+API_KEY =  os.getenv("YOUR_KEY")  # Replace with your IBM Cloud API key
 IAM_TOKEN_URL = "https://iam.cloud.ibm.com/identity/token"
 WATSONX_API_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
 
@@ -189,7 +189,7 @@ st.markdown(
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", [
     "Home", "Dashboard", "Transaction Analysis", "Risk Assessment", 
-    "Reports", "Fraud Map", "Fraud Alerts", "Chatbot", 
+    "Reports",  "Chatbot", 
     "Feedback", "Help"
 ])
 
@@ -240,6 +240,21 @@ def show_dashboard():
 # Transaction Analysis
 def show_transaction_analysis():
     st.title("Transaction Analysis")
+    # Currency Selection
+    currency = st.selectbox("Select Currency", ["USD", "EUR", "GBP", "INR", "JPY"], key="currency_transaction")
+    
+    # Currency Conversion Rates (example rates, replace with real-time API data if needed)
+    exchange_rates = {
+        "USD": 1.0,  # Base currency
+        "EUR": 0.93,  # 1 USD = 0.93 EUR
+        "GBP": 0.80,  # 1 USD = 0.80 GBP
+        "INR": 82.0,  # 1 USD = 82.0 INR
+        "JPY": 148.0  # 1 USD = 148.0 JPY
+    }
+    
+    # Function to convert amounts to the selected currency
+    def convert_currency(amount, currency):
+        return amount * exchange_rates[currency]
     sender = st.text_input("Sender Name")
     receiver = st.text_input("Receiver Name")
     amount = st.number_input("Amount", min_value=0.0)
@@ -247,7 +262,9 @@ def show_transaction_analysis():
     
     if st.button("Analyze Transaction"):
         if sender and receiver and amount and description:
-            transaction_text = f"Sender: {sender}, Receiver: {receiver}, Amount: {amount}, Description: {description}"
+            converted_amount = convert_currency(amount, currency)
+            st.write(f"Transaction amount: {converted_amount:,.2f} {currency}")
+            transaction_text = f"Sender: {sender}, Receiver: {receiver}, Amount: {converted_amount}, Description: {description}"
             risk_score = analyze_transaction(transaction_text)
             
             st.subheader("Analysis Results")
@@ -272,14 +289,32 @@ def show_transaction_analysis():
 # Risk Assessment
 def show_risk_assessment():
     st.title("Risk Assessment")
+    # Currency Conversion Rates (example rates, replace with real-time API data if needed)
+    exchange_rates = {
+        "USD": 1.0,  # Base currency
+        "EUR": 0.93,  # 1 USD = 0.93 EUR
+        "GBP": 0.80,  # 1 USD = 0.80 GBP
+        "INR": 82.0,  # 1 USD = 82.0 INR
+        "JPY": 148.0  # 1 USD = 148.0 JPY
+    }
+    
+    # Function to convert amounts to the selected currency
+    def convert_currency(amount, currency):
+        return amount * exchange_rates[currency]
     with st.form("risk_assessment_form"):
+        currency = st.selectbox("Select Currency", ["USD", "EUR", "GBP", "INR", "JPY"], key="currency_risk")
         business_type = st.selectbox("Business Type", ["Individual", "Small Business", "Corporation"])
         transaction_volume = st.slider("Monthly Transaction Volume", 0, 1000000, 10000)
         country_risk = st.selectbox("Country Risk Level", ["Low", "Medium", "High"])
         if st.form_submit_button("Calculate Risk Score"):
+            # Convert transaction volume to the selected currency
+            converted_volume = convert_currency(transaction_volume, currency)
+                
+            # Display the converted transaction volume
+            st.write(f"Monthly Transaction Volume: {converted_volume:,.2f} {currency}")
             assessment_prompt = f"""Calculate a risk score between 0 and 1 for the following customer profile:
             Business Type: {business_type}
-            Monthly Transaction Volume: ${transaction_volume}
+            Monthly Transaction Volume: ${converted_volume}
             Country Risk Level: {country_risk}
             Only return the numerical score."""
             try:
@@ -299,49 +334,61 @@ def show_risk_assessment():
 # Reports
 def show_reports():
     st.title("Reports")
-    report_type = st.selectbox("Select Report Type", ["Transaction Summary", "Risk Analysis", "Suspicious Activity"])
-    date_range = st.date_input("Select Date Range", [datetime.now(), datetime.now()])
+    
+    # Report generation options
+    report_type = st.selectbox("Select Report Type", 
+                              ["Transaction Summary", "Risk Analysis", "Suspicious Activity"])
+    date_range = st.date_input("Select Date Range", 
+                              [datetime.now(), datetime.now()])
+    
     if st.button("Generate Report"):
         st.subheader(f"{report_type} Report")
         st.write(f"Date Range: {date_range[0]} to {date_range[1]}")
+        
+        # Sample report data
         if report_type == "Transaction Summary":
-            summary_data = pd.DataFrame({"Date": pd.date_range(date_range[0], date_range[1]),
-                                         "Total Transactions": np.random.randint(100, 1000, len(pd.date_range(date_range[0], date_range[1]))),
-                                         "Average Amount": np.random.randint(1000, 10000, len(pd.date_range(date_range[0], date_range[1])))})
+            summary_data = pd.DataFrame({
+                "Date": pd.date_range(date_range[0], date_range[1]),
+                "Total Transactions": np.random.randint(100, 1000, size=len(pd.date_range(date_range[0], date_range[1]))),
+                "Average Amount": np.random.randint(1000, 10000, size=len(pd.date_range(date_range[0], date_range[1])))
+            })
             st.dataframe(summary_data)
+            
+            # Transaction volume chart
             fig = px.bar(summary_data, x="Date", y="Total Transactions")
             st.plotly_chart(fig)
+            
+        elif report_type == "Risk Analysis":
+            risk_data = pd.DataFrame({
+                "Risk Level": ["Low", "Medium", "High"],
+                "Count": np.random.randint(10, 100, size=3)
+            })
+            fig = px.pie(risk_data, values="Count", names="Risk Level")
+            st.plotly_chart(fig)
+            
+        elif report_type == "Suspicious Activity":
+            st.write("Suspicious Activity Detected:")
+            suspicious_activities = [
+                    {"date": "2025-02-21", "type": "Large Transaction", "risk_score": 85, "location": "New York"},
+                    {"date": "2025-02-20", "type": "Multiple Small Transactions", "risk_score": 75, "location": "London"},
+                    {"date": "2025-02-19", "type": "Unusual Pattern", "risk_score": 90, "location": "Tokyo"}
+                ]
+            suspicious_df = pd.DataFrame(suspicious_activities)
+                
+            # Display table
+            st.table(suspicious_df)
+                
+            # Display map
+            st.subheader("Suspicious Activity Map")
+            locations = {
+                    "New York": {"lat": 40.7128, "lon": -74.0060},
+                    "London": {"lat": 51.5074, "lon": -0.1278},
+                    "Tokyo": {"lat": 35.6895, "lon": 139.6917}
+                }
+            suspicious_df["lat"] = suspicious_df["location"].apply(lambda x: locations[x]["lat"])
+            suspicious_df["lon"] = suspicious_df["location"].apply(lambda x: locations[x]["lon"])
+            st.map(suspicious_df)
 
-# Fraud Map
-def show_fraud_map():
-    st.title("Fraud Hotspots Map")
-    st.write("Visualize regions with high fraud activity.")
-    
-    # Sample data for fraud hotspots
-    fraud_data = pd.DataFrame({
-        "latitude": [37.7749, 34.0522, 40.7128, 51.5074, 48.8566],
-        "longitude": [-122.4194, -118.2437, -74.0060, -0.1278, 2.3522],
-        "city": ["San Francisco", "Los Angeles", "New York", "London", "Paris"],
-        "fraud_cases": [120, 95, 150, 80, 60]
-    })
-    
-    # Display the map
-    st.map(fraud_data)
-
-# Fraud Alerts
-def show_fraud_alerts():
-    st.title("Fraud Alerts")
-    st.write("View real-time alerts for suspicious transactions.")
-    
-    # Sample fraud alerts
-    fraud_alerts = [
-        {"id": 1, "date": "2025-02-21", "amount": 5000, "sender": "John Doe", "receiver": "Jane Smith", "status": "High Risk"},
-        {"id": 2, "date": "2025-02-20", "amount": 10000, "sender": "Alice Johnson", "receiver": "Bob Brown", "status": "Medium Risk"},
-        {"id": 3, "date": "2025-02-19", "amount": 1500, "sender": "Charlie Davis", "receiver": "Eve White", "status": "Low Risk"}
-    ]
-    
-    # Display alerts in a table
-    st.table(fraud_alerts)
 
 # Chatbot Page
 def show_chatbot():
@@ -420,10 +467,6 @@ elif page == "Risk Assessment":
     show_risk_assessment()
 elif page == "Reports":
     show_reports()
-elif page == "Fraud Map":
-    show_fraud_map()
-elif page == "Fraud Alerts":
-    show_fraud_alerts()
 elif page == "Chatbot":
     show_chatbot()
 elif page == "Feedback":
